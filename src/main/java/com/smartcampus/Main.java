@@ -23,10 +23,10 @@ public class Main {
             final HttpServer server = startServer();
             LOG.info(String.format("Smart Campus API started and available at %s", BASE_URI));
             LOG.info("Press Enter to stop the server...");
-            
+
             // Wait for user input to terminate the server
             System.in.read();
-            
+
             LOG.info("Shutting down the server...");
             server.shutdownNow();
             LOG.info("Server shut down successfully.");
