@@ -79,8 +79,6 @@ erDiagram
   Sensor ||--o{ SensorReading : "history per sensor"
 ```
 
-_(If Mermaid does not render in your viewer, open the README on GitHub - it supports these diagrams natively.)_
-
 ---
 
 ## API summary
@@ -95,15 +93,55 @@ _(If Mermaid does not render in your viewer, open the README on GitHub - it supp
 
 **Models:** `Room`, `Sensor`, `SensorReading` (+ `ErrorMessage` for errors).
 
+## Sample `curl` commands
+
+Below are quick-reference commands for each endpoint. All assume the API is running at `http://localhost:8080/api/v1`.
+
+```bash
+# Discovery
+curl -i "http://localhost:8080/api/v1"
+
+# List all rooms
+curl -i "http://localhost:8080/api/v1/rooms"
+
+# Create a room
+curl -i -X POST -H "Content-Type: application/json" \
+  -d '{"id":"LIB-301","name":"Library Quiet Study","capacity":40}' \
+  "http://localhost:8080/api/v1/rooms"
+
+# Get a single room
+curl -i "http://localhost:8080/api/v1/rooms/LIB-301"
+
+# Delete a room
+curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
+
+# List sensors (with optional type filter)
+curl -i "http://localhost:8080/api/v1/sensors"
+curl -i "http://localhost:8080/api/v1/sensors?type=Temperature"
+
+# Register a sensor
+curl -i -X POST -H "Content-Type: application/json" \
+  -d '{"id":"TEMP-001","type":"Temperature","status":"ACTIVE","currentValue":21.5,"roomId":"LIB-301"}' \
+  "http://localhost:8080/api/v1/sensors"
+
+# Post a reading
+curl -i -X POST -H "Content-Type: application/json" \
+  -d '{"timestamp":1713868800000,"value":22.3}' \
+  "http://localhost:8080/api/v1/sensors/TEMP-001/readings"
+
+# Get readings history
+curl -i "http://localhost:8080/api/v1/sensors/TEMP-001/readings"
+```
+
 ---
 
-## Video Demo Scenario: Step-by-Step `curl` Commands
+## Video demo scenario
 
-This section is a complete walkthrough scenario for the video demonstration. It follows a logical sequence: exploring the API, creating resources, adding data, and demonstrating error handling.
+This section is the script for the video demonstration. Follow each step in order — read the description, run the `curl` command, and verify the expected result.
 
 ### Step 1: API Discovery
 
-Verify the API is running. Returns API metadata (name, version, contact) and HATEOAS links to the main collections (`/rooms`, `/sensors`).
+Check the API is running. The discovery endpoint returns metadata (name, version, contact) and HATEOAS links to the main collections. The links are **built dynamically** using `UriInfo` so they adapt to any deployment.
 
 **Expected:** `200 OK` with JSON containing `name`, `version`, `contact`, and `links`.
 
@@ -113,7 +151,7 @@ curl -i "http://localhost:8080/api/v1"
 
 ### Step 2: List Existing Rooms
 
-Fetch all rooms currently in the system. The API is pre-loaded with seed data so you'll see default rooms immediately.
+Fetch all rooms. The API comes pre-loaded with seed data (`R101`, `R102`).
 
 **Expected:** `200 OK` with a JSON array of room objects.
 
@@ -123,9 +161,9 @@ curl -i "http://localhost:8080/api/v1/rooms"
 
 ### Step 3: Create a New Room
 
-Create a new room. The API returns `201 Created` with a `Location` header pointing to the newly created resource URI.
+Create room `LIB-301`. POST returns `201 Created` with a `Location` header built via `UriInfo`.
 
-**Expected:** `201 Created`, `Location: .../api/v1/rooms/LIB-301`, response body contains the created room JSON.
+**Expected:** `201 Created`, `Location: .../api/v1/rooms/LIB-301`, body contains the new room JSON.
 
 ```bash
 curl -i -X POST \
@@ -136,7 +174,7 @@ curl -i -X POST \
 
 ### Step 4: Verify the New Room
 
-Fetch the specific room we just created by its ID to confirm it was persisted in the in-memory `DataStore`.
+Fetch `LIB-301` by ID to confirm it was persisted in the in-memory `DataStore`.
 
 **Expected:** `200 OK` with the `LIB-301` room JSON.
 
@@ -144,11 +182,11 @@ Fetch the specific room we just created by its ID to confirm it was persisted in
 curl -i "http://localhost:8080/api/v1/rooms/LIB-301"
 ```
 
-### Step 5: Error Demo – Sensor in a Non-Existent Room (422)
+### Step 5: Error — Sensor in a Non-Existent Room (422)
 
-Attempt to register a sensor into a room that doesn't exist (`NO-SUCH-ROOM`). This demonstrates custom exception mapping via `LinkedResourceNotFoundExceptionMapper` — the `roomId` reference is semantically invalid.
+Try to register a sensor into room `NO-SUCH-ROOM`. This triggers `LinkedResourceNotFoundException` → mapped to **422** via `LinkedResourceNotFoundExceptionMapper`. The response uses the `ErrorMessage` POJO.
 
-**Expected:** `422 Unprocessable Entity` with a JSON error message explaining the room does not exist.
+**Expected:** `422 Unprocessable Entity` with structured JSON error.
 
 ```bash
 curl -i -X POST \
@@ -159,9 +197,9 @@ curl -i -X POST \
 
 ### Step 6: Register a Sensor Successfully
 
-Register a temperature sensor into the `LIB-301` room created in Step 3. The room must exist or a `422` is returned (as shown above).
+Register temperature sensor `TEMP-001` into `LIB-301`. The room must exist or a 422 is returned (as shown above).
 
-**Expected:** `201 Created`, `Location` header pointing to the new sensor, response body contains the sensor JSON, and `LIB-301`'s `sensorIds` list now includes `TEMP-001`.
+**Expected:** `201 Created`, `Location` header, sensor JSON in body, `LIB-301.sensorIds` now includes `TEMP-001`.
 
 ```bash
 curl -i -X POST \
@@ -172,9 +210,9 @@ curl -i -X POST \
 
 ### Step 7: Filter Sensors by Type
 
-Use the `?type=` query parameter to filter the sensor list. Only sensors matching the type `Temperature` are returned.
+Use `@QueryParam("type")` to filter. Only sensors with type `Temperature` are returned.
 
-**Expected:** `200 OK` with a JSON array containing only sensors whose `type` is `"Temperature"`.
+**Expected:** `200 OK` with a filtered JSON array.
 
 ```bash
 curl -i "http://localhost:8080/api/v1/sensors?type=Temperature"
@@ -182,9 +220,9 @@ curl -i "http://localhost:8080/api/v1/sensors?type=Temperature"
 
 ### Step 8: Add a Sensor Reading
 
-Post a new reading to sensor `TEMP-001`. This appends the reading to the sensor's history and automatically updates the parent sensor's `currentValue` to `22.3`.
+POST a reading to the sub-resource `/sensors/TEMP-001/readings`. The server auto-generates `id` if missing and updates `Sensor.currentValue` to `22.3`. This uses the **sub-resource locator** pattern — `SensorResource` delegates to `SensorReadingResource`.
 
-**Expected:** `201 Created` with the reading JSON (server auto-generates `id` if omitted).
+**Expected:** `201 Created` with reading JSON.
 
 ```bash
 curl -i -X POST \
@@ -195,27 +233,27 @@ curl -i -X POST \
 
 ### Step 9: Get Sensor Readings History
 
-Retrieve all readings stored for sensor `TEMP-001`. This returns the full history list.
+Retrieve all readings for `TEMP-001`. This returns the full history list.
 
-**Expected:** `200 OK` with a JSON array of all readings for that sensor.
+**Expected:** `200 OK` with JSON array of readings.
 
 ```bash
 curl -i "http://localhost:8080/api/v1/sensors/TEMP-001/readings"
 ```
 
-### Step 10: Error Demo – Deleting a Room in Use (409)
+### Step 10: Error — Deleting a Room in Use (409)
 
-Try to delete room `LIB-301`. Since it still has sensor `TEMP-001` assigned, the API enforces data integrity via `RoomNotEmptyExceptionMapper` and rejects the request.
+Try to delete `LIB-301` while `TEMP-001` is still assigned. This triggers `RoomNotEmptyException` → mapped to **409 Conflict** via `RoomNotEmptyExceptionMapper`. Data integrity is enforced.
 
-**Expected:** `409 Conflict` with a JSON error message explaining the room still has sensors assigned.
+**Expected:** `409 Conflict` with `ErrorMessage` JSON.
 
 ```bash
 curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
 ```
 
-### Step 11: Error Demo – Unsupported Media Type (415)
+### Step 11: Error — Unsupported Media Type (415)
 
-Send a request with `Content-Type: text/plain` instead of `application/json`. Jersey cannot find a body reader for this media type and rejects it before the resource method runs.
+Send `Content-Type: text/plain` instead of `application/json`. Jersey's `@Consumes(APPLICATION_JSON)` rejects the request before the method body runs.
 
 **Expected:** `415 Unsupported Media Type`.
 
@@ -225,6 +263,27 @@ curl -i -X POST \
   -d 'This is not valid JSON' \
   "http://localhost:8080/api/v1/sensors"
 ```
+
+### Step 12: DELETE Idempotency Demo
+
+First, remove the sensor so `LIB-301` is empty, then delete the room twice. First DELETE returns `204 No Content`. Second DELETE returns `404 Not Found` — the server state (room absent) is identical after both calls, proving the operation is **idempotent in terms of state**.
+
+```bash
+# Remove the sensor from the room first (or use a room with no sensors)
+# First delete — room exists and is empty
+curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
+
+# Second delete — room already gone, same server state
+curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
+```
+
+**Expected:** First call → `204`, second call → `404` with `ErrorMessage` JSON. Server state is the same after both.
+
+---
+
+**Tools used:** Postman and/or `curl` in the terminal.
+
+The full video was recorded separately and submitted via **Blackboard** as required by the module brief.
 
 ---
 
@@ -240,9 +299,9 @@ curl -i -X POST \
 
 ### Part 1.2 - Discovery endpoint and HATEOAS
 
-`GET /api/v1` returns JSON with **`version`**, **`contact`**, and a **`links`** object pointing at `/api/v1/rooms` and `/api/v1/sensors`.
+`GET /api/v1` returns JSON with **`version`**, **`contact`**, and a **`links`** object whose URLs are **built dynamically** using `UriInfo.getBaseUri()`, so they adapt to whatever host and context path the WAR is deployed under.
 
-**Why hypermedia / HATEOAS matters:** Instead of hard-coding URLs in every client, the API tells you where the main collections live. If paths change later, clients that start from the discovery document and follow links are less likely to break than clients that only read a static PDF. It’s not full hypermedia everywhere, but the root still works as a sensible **entry point** for the API.
+**Why hypermedia / HATEOAS matters:** Instead of hard-coding URLs in every client, the API tells you where the main collections live. If paths change later, clients that start from the discovery document and follow links are less likely to break than clients that only read a static PDF. Building the URLs dynamically (rather than hardcoding `/api/v1/rooms`) means the links are always correct even if the application is deployed under a different context path. It's not full hypermedia everywhere, but the root still works as a sensible **entry point** for the API.
 
 ### Part 2.1 - Room CRUD, `201 Created`, `Location`, list payload shape
 
@@ -300,7 +359,7 @@ Each mapper returns JSON using my **`ErrorMessage`** type (`message` + `status` 
 
 ### Extra (module brief) - logging filter vs logging in every method
 
-I added `ApiLoggingFilter` as both **`ContainerRequestFilter`** and **`ContainerResponseFilter`**, using `java.util.logging.Logger`. It logs **method + full URI** on the request side and the **response status** on the way out.
+I added `LoggingFilter` as both **`ContainerRequestFilter`** and **`ContainerResponseFilter`**, using `java.util.logging.Logger`. It logs **method + full URI** on the request side and the **response status** on the way out.
 
 **Why a filter:** If I scattered `LOG.info` in every resource method, changing the format or adding a correlation id would mean editing lots of files. The filter keeps logging **centralised** and consistent for all endpoints.
 
