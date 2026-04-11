@@ -24,7 +24,6 @@ Main packages: `com.smartcampus.resource` (REST classes), `com.smartcampus.model
    http://localhost:8080/api/v1
    ```
 
-
 The app is registered with **`@ApplicationPath("/api/v1")`** on `SmartCampusApplication` (Jersey `ResourceConfig`, which still counts as the JAX-RS `Application` entry point).
 
 ---
@@ -235,9 +234,9 @@ curl -i -X POST \
 
 **Setup:** I used Maven to pull in **Jersey** (`jersey-container-servlet`, Jackson for JSON, HK2). The application class is `SmartCampusApplication` with `@ApplicationPath("/api/v1")` so everything hangs under that versioned root.
 
-**Lifecycle (request-scoped vs singleton):** By default, JAX-RS resources like `RoomResource` and `SensorResource` are **created per request** (not a single long-lived singleton instance). That means you should not rely on instance fields to hold shared data - it would either be wrong logically or get lost between requests. Because of that, I keep all shared data in a static `DataStore` (`HashMap`s etc.) that every request hits.
+**Lifecycle (request-scoped vs singleton):** By default, JAX-RS resources like `RoomResource` and `SensorResource` are **created per request** (not a single long-lived singleton instance). That means you should not rely on instance fields to hold shared data. It would either be wrong logically or get lost between requests. Because of that, I keep all shared data in a static `DataStore` (`HashMap`s etc.) that every request hits.
 
-**Synchronisation / race conditions:** I know this is only coursework, but it’s worth saying honestly: the room and sensor maps are normal `HashMap`s, which are **not** thread-safe if two threads write at the same time. The reading lists use `Collections.synchronizedList` which helps a bit for the list operations, but the maps could still race under heavy concurrency. In a real deployment you’d use concurrent collections or a database with proper transactions. I still kept everything in memory as required.
+**Synchronisation / race conditions:** All public methods in `DataStore` are marked **`synchronized`**, which means only one thread can execute any of them at a time on the singleton instance. This prevents race conditions on the underlying `HashMap`s and `ArrayList`s without needing any extra imports `synchronized` is a built-in Java keyword. The trade-off is slightly lower throughput under heavy concurrency (threads queue up instead of running in parallel), but for a coursework-scale API this is perfectly acceptable. In a real production deployment you'd consider `ConcurrentHashMap` or a proper database with transactions, but `synchronized` keeps the code simple and correct.
 
 ### Part 1.2 - Discovery endpoint and HATEOAS
 

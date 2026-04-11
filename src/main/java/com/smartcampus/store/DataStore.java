@@ -54,23 +54,45 @@ public class DataStore {
     }
 
     // Room methods
-    public Map<String, Room> getRooms() { return rooms; }
-    public Room getRoom(String id) { return rooms.get(id); }
-    public void addRoom(Room room) { rooms.put(room.getId(), room); }
-    public Room removeRoom(String id) { return rooms.remove(id); }
+    public synchronized Map<String, Room> getRooms() {
+        return rooms;
+    }
+
+    public synchronized Room getRoom(String id) {
+        return rooms.get(id);
+    }
+
+    public synchronized void addRoom(Room room) {
+        rooms.put(room.getId(), room);
+    }
+
+    public synchronized Room removeRoom(String id) {
+        return rooms.remove(id);
+    }
 
     // Sensor methods
-    public Map<String, Sensor> getSensors() { return sensors; }
-    public Sensor getSensor(String id) { return sensors.get(id); }
-    public void addSensor(Sensor sensor) { sensors.put(sensor.getId(), sensor); }
-    public Sensor removeSensor(String id) { return sensors.remove(id); }
+    public synchronized Map<String, Sensor> getSensors() {
+        return sensors;
+    }
+
+    public synchronized Sensor getSensor(String id) {
+        return sensors.get(id);
+    }
+
+    public synchronized void addSensor(Sensor sensor) {
+        sensors.put(sensor.getId(), sensor);
+    }
+
+    public synchronized Sensor removeSensor(String id) {
+        return sensors.remove(id);
+    }
 
     // Reading methods
-    public List<SensorReading> getReadings(String sensorId) {
+    public synchronized List<SensorReading> getReadings(String sensorId) {
         return readings.getOrDefault(sensorId, new ArrayList<>());
     }
 
-    public void addReading(String sensorId, SensorReading reading) {
+    public synchronized void addReading(String sensorId, SensorReading reading) {
         if (!readings.containsKey(sensorId)) {
             readings.put(sensorId, new ArrayList<>());
         }
