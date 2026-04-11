@@ -1,6 +1,7 @@
 package com.smartcampus.resource;
 
 import com.smartcampus.exception.SensorUnavailableException;
+import com.smartcampus.model.ErrorMessage;
 import com.smartcampus.model.Sensor;
 import com.smartcampus.model.SensorReading;
 import com.smartcampus.store.DataStore;
@@ -36,7 +37,7 @@ public class SensorReadingResource {
         if (sensor == null) {
             LOG.severe("Sensor not found when fetching readings: " + sensorId);
             return Response.status(Response.Status.NOT_FOUND)
-                    .entity("{\"error\": \"Sensor not found: " + sensorId + "\"}")
+                    .entity(new ErrorMessage("Not Found", 404, "Sensor not found: " + sensorId))
                     .build();
         }
         List<SensorReading> readings = store.getReadings(sensorId);
@@ -53,7 +54,7 @@ public class SensorReadingResource {
         if (sensor == null) {
             LOG.severe("Sensor not found when adding reading: " + sensorId);
             return Response.status(Response.Status.NOT_FOUND)
-                    .entity("{\"error\": \"Sensor not found: " + sensorId + "\"}")
+                    .entity(new ErrorMessage("Not Found", 404, "Sensor not found: " + sensorId))
                     .build();
         }
 

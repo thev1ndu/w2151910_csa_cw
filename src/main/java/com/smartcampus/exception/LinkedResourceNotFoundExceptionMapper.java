@@ -1,11 +1,10 @@
 package com.smartcampus.exception;
 
+import com.smartcampus.model.ErrorMessage;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  *
@@ -16,12 +15,8 @@ public class LinkedResourceNotFoundExceptionMapper implements ExceptionMapper<Li
 
     @Override
     public Response toResponse(LinkedResourceNotFoundException ex) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("error", "Unprocessable Entity");
-        body.put("status", 422);
-        body.put("message", ex.getMessage());
         return Response.status(422)
-                .entity(body)
+                .entity(new ErrorMessage("Unprocessable Entity", 422, ex.getMessage()))
                 .type(MediaType.APPLICATION_JSON)
                 .build();
     }

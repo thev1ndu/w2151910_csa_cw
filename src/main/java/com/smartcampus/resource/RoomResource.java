@@ -1,6 +1,7 @@
 package com.smartcampus.resource;
 
 import com.smartcampus.exception.RoomNotEmptyException;
+import com.smartcampus.model.ErrorMessage;
 import com.smartcampus.model.Room;
 import com.smartcampus.store.DataStore;
 import javax.ws.rs.*;
@@ -56,7 +57,7 @@ public class RoomResource {
         if (room == null) {
             LOG.severe("Room not found: " + roomId);
             return Response.status(Response.Status.NOT_FOUND)
-                    .entity("{\"error\": \"Room not found: " + roomId + "\"}")
+                    .entity(new ErrorMessage("Not Found", 404, "Room not found: " + roomId))
                     .build();
         }
         return Response.ok(room).build();
@@ -69,8 +70,10 @@ public class RoomResource {
         LOG.info("Attempting to delete room with ID: " + roomId);
         Room room = store.getRoom(roomId);
         if (room == null) {
-            LOG.info("Room not found for deletion, returning no content: " + roomId);
-            return Response.noContent().build();
+            LOG.info("Room not found for deletion: " + roomId);
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorMessage("Not Found", 404, "Room not found: " + roomId))
+                    .build();
         }
         if (!room.getSensorIds().isEmpty()) {
             String errorMsg = "Room " + roomId + " still has " + room.getSensorIds().size()

@@ -1,6 +1,7 @@
 package com.smartcampus.resource;
 
 import com.smartcampus.exception.LinkedResourceNotFoundException;
+import com.smartcampus.model.ErrorMessage;
 import com.smartcampus.model.Room;
 import com.smartcampus.model.Sensor;
 import com.smartcampus.store.DataStore;
@@ -73,7 +74,7 @@ public class SensorResource {
         if (sensor == null) {
             LOG.severe("Sensor not found: " + sensorId);
             return Response.status(Response.Status.NOT_FOUND)
-                    .entity("{\"error\": \"Sensor not found: " + sensorId + "\"}")
+                    .entity(new ErrorMessage("Not Found", 404, "Sensor not found: " + sensorId))
                     .build();
         }
         return Response.ok(sensor).build();
