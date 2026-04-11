@@ -3,18 +3,18 @@ package com.smartcampus.store;
 import com.smartcampus.model.Room;
 import com.smartcampus.model.Sensor;
 import com.smartcampus.model.SensorReading;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DataStore {
 
     private static DataStore instance = new DataStore();
 
-    private Map<String, Room> rooms = new HashMap<>();
-    private Map<String, Sensor> sensors = new HashMap<>();
-    private Map<String, List<SensorReading>> readings = new HashMap<>();
+    private Map<String, Room> rooms = new ConcurrentHashMap<>();
+    private Map<String, Sensor> sensors = new ConcurrentHashMap<>();
+    private Map<String, List<SensorReading>> readings = new ConcurrentHashMap<>();
 
     private DataStore() {
         seedData();
@@ -54,48 +54,45 @@ public class DataStore {
     }
 
     // Room methods
-    public synchronized Map<String, Room> getRooms() {
+    public Map<String, Room> getRooms() {
         return rooms;
     }
 
-    public synchronized Room getRoom(String id) {
+    public Room getRoom(String id) {
         return rooms.get(id);
     }
 
-    public synchronized void addRoom(Room room) {
+    public void addRoom(Room room) {
         rooms.put(room.getId(), room);
     }
 
-    public synchronized Room removeRoom(String id) {
+    public Room removeRoom(String id) {
         return rooms.remove(id);
     }
 
     // Sensor methods
-    public synchronized Map<String, Sensor> getSensors() {
+    public Map<String, Sensor> getSensors() {
         return sensors;
     }
 
-    public synchronized Sensor getSensor(String id) {
+    public Sensor getSensor(String id) {
         return sensors.get(id);
     }
 
-    public synchronized void addSensor(Sensor sensor) {
+    public void addSensor(Sensor sensor) {
         sensors.put(sensor.getId(), sensor);
     }
 
-    public synchronized Sensor removeSensor(String id) {
+    public Sensor removeSensor(String id) {
         return sensors.remove(id);
     }
 
     // Reading methods
-    public synchronized List<SensorReading> getReadings(String sensorId) {
-        return readings.getOrDefault(sensorId, new ArrayList<>());
+    public List<SensorReading> getReadings(String sensorId) {
+        return readings.getOrDefault(sensorId, new CopyOnWriteArrayList<>());
     }
 
-    public synchronized void addReading(String sensorId, SensorReading reading) {
-        if (!readings.containsKey(sensorId)) {
-            readings.put(sensorId, new ArrayList<>());
-        }
-        readings.get(sensorId).add(reading);
+    public void addReading(String sensorId, SensorReading reading) {
+        readings.computeIfAbsent(sensorId, k -> new CopyOnWriteArrayList<>()).add(reading);
     }
 }
