@@ -7,6 +7,10 @@ import javax.ws.rs.core.MediaType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ *
+ * @author thevinduw
+ */
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)
 public class DiscoveryResource {

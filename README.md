@@ -18,13 +18,12 @@ Main packages: `com.smartcampus.resource` (REST classes), `com.smartcampus.model
 
 2. Take `target/smart-campus-api-1.0-SNAPSHOT.war`, copy it to Tomcat’s `webapps` folder (you can rename it e.g. `smart-campus.war`).
 
-3. Start Tomcat. If the app is at context `/smart-campus`, the API base is:
+3. Start Tomcat. The API base URL is:
 
    ```text
-   http://localhost:8080/smart-campus/api/v1
+   http://localhost:8080/api/v1
    ```
 
-   I’ll call that **`BASE_URL`** below.
 
 The app is registered with **`@ApplicationPath("/api/v1")`** on `SmartCampusApplication` (Jersey `ResourceConfig`, which still counts as the JAX-RS `Application` entry point).
 
@@ -101,107 +100,131 @@ _(If Mermaid does not render in your viewer, open the README on GitHub - it supp
 
 ## Video Demo Scenario: Step-by-Step `curl` Commands
 
-This section is designed as a complete walkthrough scenario for your video demonstration. It follows a logical sequence: exploring the API, creating resources, adding data, and demonstrating error handling frameworks.
-
-Set your base URL first (adjust if running standalone via `Main.java` instead of Tomcat):
-
-```bash
-BASE_URL="http://localhost:8080/smart-campus/api/v1"
-```
+This section is a complete walkthrough scenario for the video demonstration. It follows a logical sequence: exploring the API, creating resources, adding data, and demonstrating error handling.
 
 ### Step 1: API Discovery
 
-Start by verifying the API is up and running. This returns metadata and HATEOAS links to the main collections.
+Verify the API is running. Returns API metadata (name, version, contact) and HATEOAS links to the main collections (`/rooms`, `/sensors`).
+
+**Expected:** `200 OK` with JSON containing `name`, `version`, `contact`, and `links`.
 
 ```bash
-curl -i "$BASE_URL"
+curl -i "http://localhost:8080/api/v1"
 ```
 
 ### Step 2: List Existing Rooms
 
-Since the API is pre-loaded with seed data, you'll see a few default rooms available immediately.
+Fetch all rooms currently in the system. The API is pre-loaded with seed data so you'll see default rooms immediately.
+
+**Expected:** `200 OK` with a JSON array of room objects.
 
 ```bash
-curl -i "$BASE_URL/rooms"
+curl -i "http://localhost:8080/api/v1/rooms"
 ```
 
 ### Step 3: Create a New Room
 
-Let's create a brand new room for our demonstration. Notice the `201 Created` status and the `Location` header in the response pointing to the newly created resource.
+Create a new room. The API returns `201 Created` with a `Location` header pointing to the newly created resource URI.
+
+**Expected:** `201 Created`, `Location: .../api/v1/rooms/LIB-301`, response body contains the created room JSON.
 
 ```bash
 curl -i -X POST \
   -H "Content-Type: application/json" \
   -d '{"id":"LIB-301","name":"Library Quiet Study","capacity":40}' \
-  "$BASE_URL/rooms"
+  "http://localhost:8080/api/v1/rooms"
 ```
 
 ### Step 4: Verify the New Room
 
-Fetch the specific room we just created by its ID to prove it was persisted in the `DataStore`.
+Fetch the specific room we just created by its ID to confirm it was persisted in the in-memory `DataStore`.
+
+**Expected:** `200 OK` with the `LIB-301` room JSON.
 
 ```bash
-curl -i "$BASE_URL/rooms/LIB-301"
+curl -i "http://localhost:8080/api/v1/rooms/LIB-301"
 ```
 
-### Step 5: Error Demo - Sensor in a Non-Existent Room
+### Step 5: Error Demo – Sensor in a Non-Existent Room (422)
 
-Attempt to register a sensor into a room that doesn't exist. This demonstrates custom exception mapping and semantic validation (Expect `422 Unprocessable Entity` with a custom JSON message).
+Attempt to register a sensor into a room that doesn't exist (`NO-SUCH-ROOM`). This demonstrates custom exception mapping via `LinkedResourceNotFoundExceptionMapper` — the `roomId` reference is semantically invalid.
+
+**Expected:** `422 Unprocessable Entity` with a JSON error message explaining the room does not exist.
 
 ```bash
 curl -i -X POST \
   -H "Content-Type: application/json" \
   -d '{"id":"X-1","type":"CO2","status":"ACTIVE","currentValue":0,"roomId":"NO-SUCH-ROOM"}' \
-  "$BASE_URL/sensors"
+  "http://localhost:8080/api/v1/sensors"
 ```
 
 ### Step 6: Register a Sensor Successfully
 
-Now, register the sensor correctly into the `LIB-301` room we successfully created in Step 3.
+Register a temperature sensor into the `LIB-301` room created in Step 3. The room must exist or a `422` is returned (as shown above).
+
+**Expected:** `201 Created`, `Location` header pointing to the new sensor, response body contains the sensor JSON, and `LIB-301`'s `sensorIds` list now includes `TEMP-001`.
 
 ```bash
 curl -i -X POST \
   -H "Content-Type: application/json" \
   -d '{"id":"TEMP-001","type":"Temperature","status":"ACTIVE","currentValue":21.5,"roomId":"LIB-301"}' \
-  "$BASE_URL/sensors"
+  "http://localhost:8080/api/v1/sensors"
 ```
 
 ### Step 7: Filter Sensors by Type
 
-Demonstrate query parameters working by filtering the sensors list to only show "Temperature" sensors.
+Use the `?type=` query parameter to filter the sensor list. Only sensors matching the type `Temperature` are returned.
+
+**Expected:** `200 OK` with a JSON array containing only sensors whose `type` is `"Temperature"`.
 
 ```bash
-curl -i "$BASE_URL/sensors?type=Temperature"
+curl -i "http://localhost:8080/api/v1/sensors?type=Temperature"
 ```
 
 ### Step 8: Add a Sensor Reading
 
-Post a new reading to the sensor. This automatically updates the parent sensor's `currentValue`.
+Post a new reading to sensor `TEMP-001`. This appends the reading to the sensor's history and automatically updates the parent sensor's `currentValue` to `22.3`.
+
+**Expected:** `201 Created` with the reading JSON (server auto-generates `id` if omitted).
 
 ```bash
 curl -i -X POST \
   -H "Content-Type: application/json" \
   -d '{"timestamp":1713868800000,"value":22.3}' \
-  "$BASE_URL/sensors/TEMP-001/readings"
+  "http://localhost:8080/api/v1/sensors/TEMP-001/readings"
 ```
 
-### Step 9: Error Demo - Deleting a Room in Use
+### Step 9: Get Sensor Readings History
 
-Try to delete our new room. Since it now has a sensor assigned (`TEMP-001`), the API enforces data integrity and rejects the request (Expect `409 Conflict`).
+Retrieve all readings stored for sensor `TEMP-001`. This returns the full history list.
+
+**Expected:** `200 OK` with a JSON array of all readings for that sensor.
 
 ```bash
-curl -i -X DELETE "$BASE_URL/rooms/LIB-301"
+curl -i "http://localhost:8080/api/v1/sensors/TEMP-001/readings"
 ```
 
-### Step 10: Error Demo - Unsupported Media Type
+### Step 10: Error Demo – Deleting a Room in Use (409)
 
-Finally, send a request with the wrong `Content-Type` to show how Jersey robustly handles invalid media formats out-of-the-box (Expect `415 Unsupported Media Type`).
+Try to delete room `LIB-301`. Since it still has sensor `TEMP-001` assigned, the API enforces data integrity via `RoomNotEmptyExceptionMapper` and rejects the request.
+
+**Expected:** `409 Conflict` with a JSON error message explaining the room still has sensors assigned.
+
+```bash
+curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
+```
+
+### Step 11: Error Demo – Unsupported Media Type (415)
+
+Send a request with `Content-Type: text/plain` instead of `application/json`. Jersey cannot find a body reader for this media type and rejects it before the resource method runs.
+
+**Expected:** `415 Unsupported Media Type`.
 
 ```bash
 curl -i -X POST \
   -H "Content-Type: text/plain" \
   -d 'This is not valid JSON' \
-  "$BASE_URL/sensors"
+  "http://localhost:8080/api/v1/sensors"
 ```
 
 ---

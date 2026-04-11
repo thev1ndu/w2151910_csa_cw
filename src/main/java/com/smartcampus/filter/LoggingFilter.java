@@ -7,6 +7,10 @@ import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.ext.Provider;
 import java.util.logging.Logger;
 
+/**
+ *
+ * @author thevinduw
+ */
 @Provider
 public class LoggingFilter implements ContainerRequestFilter, ContainerResponseFilter {
 

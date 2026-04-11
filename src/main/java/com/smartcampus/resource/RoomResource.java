@@ -14,6 +14,10 @@ import java.util.Collection;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
+/**
+ *
+ * @author thevinduw
+ */
 @Path("/rooms")
 @Produces(MediaType.APPLICATION_JSON)
 public class RoomResource {
@@ -69,7 +73,8 @@ public class RoomResource {
             return Response.noContent().build();
         }
         if (!room.getSensorIds().isEmpty()) {
-            String errorMsg = "Room " + roomId + " still has " + room.getSensorIds().size() + " sensor(s) assigned. Remove all sensors before deleting the room.";
+            String errorMsg = "Room " + roomId + " still has " + room.getSensorIds().size()
+                    + " sensor(s) assigned. Remove all sensors before deleting the room.";
             LOG.severe(errorMsg);
             throw new RoomNotEmptyException(errorMsg);
         }

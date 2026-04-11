@@ -16,6 +16,10 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+/**
+ *
+ * @author thevinduw
+ */
 @Path("/sensors")
 @Produces(MediaType.APPLICATION_JSON)
 public class SensorResource {
@@ -48,7 +52,8 @@ public class SensorResource {
         LOG.info("Attempting to register new sensor: " + sensor.getId());
         Room room = store.getRoom(sensor.getRoomId());
         if (room == null) {
-            String errorMsg = "Room '" + sensor.getRoomId() + "' does not exist. Cannot register a sensor to a non-existent room.";
+            String errorMsg = "Room '" + sensor.getRoomId()
+                    + "' does not exist. Cannot register a sensor to a non-existent room.";
             LOG.severe(errorMsg);
             throw new LinkedResourceNotFoundException(errorMsg);
         }

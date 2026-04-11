@@ -7,6 +7,10 @@ import javax.ws.rs.ext.Provider;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ *
+ * @author thevinduw
+ */
 @Provider
 public class SensorUnavailableExceptionMapper implements ExceptionMapper<SensorUnavailableException> {
 

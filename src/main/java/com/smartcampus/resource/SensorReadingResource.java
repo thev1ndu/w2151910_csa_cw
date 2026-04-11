@@ -12,6 +12,10 @@ import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
+/**
+ *
+ * @author thevinduw
+ */
 @Produces(MediaType.APPLICATION_JSON)
 public class SensorReadingResource {
 
