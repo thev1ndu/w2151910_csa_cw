@@ -4,7 +4,6 @@ Coursework submission for **Client-Server Architectures** (2025/26). I implement
 
 Main packages: `com.smartcampus.resource` (REST classes), `com.smartcampus.model` (POJOs), `com.smartcampus.store` (`DataStore`), `com.smartcampus.exception` (custom errors + mappers), `com.smartcampus.filter` (logging).
 
-
 ---
 
 ## How to build and run
@@ -29,7 +28,6 @@ Main packages: `com.smartcampus.resource` (REST classes), `com.smartcampus.model
 
 The app is registered with **`@ApplicationPath("/api/v1")`** on `SmartCampusApplication` (Jersey `ResourceConfig`, which still counts as the JAX-RS `Application` entry point).
 
-
 ---
 
 ## Design overview
@@ -40,10 +38,10 @@ Technically it’s a normal Maven WAR: Tomcat (or similar) receives the HTTP cal
 
 **Rough breakdown of what the code does**
 
-- **Discovery** - one GET at the root of `/api/v1` for version/contact/links.  
-- **Rooms** - list/create, fetch by id, delete (delete is blocked if the room still has sensors attached). New room POST returns **201** and a **Location** header.  
-- **Sensors** - list with optional `?type=...`, register with JSON (room must exist or you get **422**; wrong `Content-Type` gives **415**).  
-- **Readings** - nested under `/sensors/{id}/readings` via a sub-resource class; posting a reading updates the parent sensor’s `currentValue`.  
+- **Discovery** - one GET at the root of `/api/v1` for version/contact/links.
+- **Rooms** - list/create, fetch by id, delete (delete is blocked if the room still has sensors attached). New room POST returns **201** and a **Location** header.
+- **Sensors** - list with optional `?type=...`, register with JSON (room must exist or you get **422**; wrong `Content-Type` gives **415**).
+- **Readings** - nested under `/sensors/{id}/readings` via a sub-resource class; posting a reading updates the parent sensor’s `currentValue`.
 - **Errors / logging** - mappers for **409 / 422 / 403**, a catch-all **500** mapper, plus the filter mentioned above.
 
 The longer explanations (lifecycle, HATEOAS, idempotency, etc.) are in the **Written report** section further down that’s where I answered the coursework questions properly.
@@ -83,104 +81,128 @@ erDiagram
   Sensor ||--o{ SensorReading : "history per sensor"
 ```
 
-*(If Mermaid does not render in your viewer, open the README on GitHub - it supports these diagrams natively.)*
-
+_(If Mermaid does not render in your viewer, open the README on GitHub - it supports these diagrams natively.)_
 
 ---
 
 ## API summary
 
-| Method | Path | Notes |
-|--------|------|--------|
-| GET | `/api/v1` | Discovery: metadata + links |
-| GET, POST | `/api/v1/rooms` | List / create room |
-| GET, DELETE | `/api/v1/rooms/{roomId}` | Detail / delete (delete blocked if sensors still linked) |
-| GET, POST | `/api/v1/sensors` | List (optional `?type=`), register sensor |
-| GET, POST | `/api/v1/sensors/{sensorId}/readings` | History / append reading |
+| Method      | Path                                  | Notes                                                    |
+| ----------- | ------------------------------------- | -------------------------------------------------------- |
+| GET         | `/api/v1`                             | Discovery: metadata + links                              |
+| GET, POST   | `/api/v1/rooms`                       | List / create room                                       |
+| GET, DELETE | `/api/v1/rooms/{roomId}`              | Detail / delete (delete blocked if sensors still linked) |
+| GET, POST   | `/api/v1/sensors`                     | List (optional `?type=`), register sensor                |
+| GET, POST   | `/api/v1/sensors/{sensorId}/readings` | History / append reading                                 |
 
 **Models:** `Room`, `Sensor`, `SensorReading` (+ `ErrorMessage` for errors).
 
-
 ---
 
-## Example `curl` commands
+## Video Demo Scenario: Step-by-Step `curl` Commands
 
-Set your base URL first:
+This section is designed as a complete walkthrough scenario for your video demonstration. It follows a logical sequence: exploring the API, creating resources, adding data, and demonstrating error handling frameworks.
+
+Set your base URL first (adjust if running standalone via `Main.java` instead of Tomcat):
 
 ```bash
 BASE_URL="http://localhost:8080/smart-campus/api/v1"
 ```
 
-1. **Discovery (`GET /api/v1`)**
+### Step 1: API Discovery
 
-   ```bash
-   curl -i "$BASE_URL"
-   ```
+Start by verifying the API is up and running. This returns metadata and HATEOAS links to the main collections.
 
-2. **Create a room - check `201` and `Location` header**
+```bash
+curl -i "$BASE_URL"
+```
 
-   ```bash
-   curl -i -X POST \
-     -H "Content-Type: application/json" \
-     -d '{"id":"LIB-301","name":"Library Quiet Study","capacity":40}' \
-     "$BASE_URL/rooms"
-   ```
+### Step 2: List Existing Rooms
 
-3. **List rooms and get one by id**
+Since the API is pre-loaded with seed data, you'll see a few default rooms available immediately.
 
-   ```bash
-   curl -i "$BASE_URL/rooms"
-   curl -i "$BASE_URL/rooms/LIB-301"
-   ```
+```bash
+curl -i "$BASE_URL/rooms"
+```
 
-4. **Register a sensor (valid room)**
+### Step 3: Create a New Room
 
-   ```bash
-   curl -i -X POST \
-     -H "Content-Type: application/json" \
-     -d '{"id":"TEMP-001","type":"Temperature","status":"ACTIVE","currentValue":21.5,"roomId":"LIB-301"}' \
-     "$BASE_URL/sensors"
-   ```
+Let's create a brand new room for our demonstration. Notice the `201 Created` status and the `Location` header in the response pointing to the newly created resource.
 
-5. **Filter sensors by type (`@QueryParam`)**
+```bash
+curl -i -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"id":"LIB-301","name":"Library Quiet Study","capacity":40}' \
+  "$BASE_URL/rooms"
+```
 
-   ```bash
-   curl -i "$BASE_URL/sensors?type=CO2"
-   ```
+### Step 4: Verify the New Room
 
-6. **Wrong content-type on POST - expect `415 Unsupported Media Type`**
+Fetch the specific room we just created by its ID to prove it was persisted in the `DataStore`.
 
-   ```bash
-   curl -i -X POST \
-     -H "Content-Type: text/plain" \
-     -d 'not json' \
-     "$BASE_URL/sensors"
-   ```
+```bash
+curl -i "$BASE_URL/rooms/LIB-301"
+```
 
-7. **Add a reading (updates `currentValue` on the sensor)**
+### Step 5: Error Demo - Sensor in a Non-Existent Room
 
-   ```bash
-   curl -i -X POST \
-     -H "Content-Type: application/json" \
-     -d '{"timestamp":1713868800000,"value":22.3}' \
-     "$BASE_URL/sensors/TEMP-001/readings"
-   ```
+Attempt to register a sensor into a room that doesn't exist. This demonstrates custom exception mapping and semantic validation (Expect `422 Unprocessable Entity` with a custom JSON message).
 
-8. **Delete room that still has sensors - expect `409` + JSON error**
+```bash
+curl -i -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"id":"X-1","type":"CO2","status":"ACTIVE","currentValue":0,"roomId":"NO-SUCH-ROOM"}' \
+  "$BASE_URL/sensors"
+```
 
-   ```bash
-   curl -i -X DELETE "$BASE_URL/rooms/LIB-301"
-   ```
+### Step 6: Register a Sensor Successfully
 
-9. **POST sensor with bad `roomId` - expect `422` + JSON**
+Now, register the sensor correctly into the `LIB-301` room we successfully created in Step 3.
 
-   ```bash
-   curl -i -X POST \
-     -H "Content-Type: application/json" \
-     -d '{"id":"X-1","type":"CO2","status":"ACTIVE","currentValue":0,"roomId":"NO-SUCH-ROOM"}' \
-     "$BASE_URL/sensors"
-   ```
+```bash
+curl -i -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"id":"TEMP-001","type":"Temperature","status":"ACTIVE","currentValue":21.5,"roomId":"LIB-301"}' \
+  "$BASE_URL/sensors"
+```
 
+### Step 7: Filter Sensors by Type
+
+Demonstrate query parameters working by filtering the sensors list to only show "Temperature" sensors.
+
+```bash
+curl -i "$BASE_URL/sensors?type=Temperature"
+```
+
+### Step 8: Add a Sensor Reading
+
+Post a new reading to the sensor. This automatically updates the parent sensor's `currentValue`.
+
+```bash
+curl -i -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"timestamp":1713868800000,"value":22.3}' \
+  "$BASE_URL/sensors/TEMP-001/readings"
+```
+
+### Step 9: Error Demo - Deleting a Room in Use
+
+Try to delete our new room. Since it now has a sensor assigned (`TEMP-001`), the API enforces data integrity and rejects the request (Expect `409 Conflict`).
+
+```bash
+curl -i -X DELETE "$BASE_URL/rooms/LIB-301"
+```
+
+### Step 10: Error Demo - Unsupported Media Type
+
+Finally, send a request with the wrong `Content-Type` to show how Jersey robustly handles invalid media formats out-of-the-box (Expect `415 Unsupported Media Type`).
+
+```bash
+curl -i -X POST \
+  -H "Content-Type: text/plain" \
+  -d 'This is not valid JSON' \
+  "$BASE_URL/sensors"
+```
 
 ---
 
@@ -194,13 +216,11 @@ BASE_URL="http://localhost:8080/smart-campus/api/v1"
 
 **Synchronisation / race conditions:** I know this is only coursework, but it’s worth saying honestly: the room and sensor maps are normal `HashMap`s, which are **not** thread-safe if two threads write at the same time. The reading lists use `Collections.synchronizedList` which helps a bit for the list operations, but the maps could still race under heavy concurrency. In a real deployment you’d use concurrent collections or a database with proper transactions. I still kept everything in memory as required.
 
-
 ### Part 1.2 - Discovery endpoint and HATEOAS
 
 `GET /api/v1` returns JSON with **`version`**, **`contact`**, and a **`links`** object pointing at `/api/v1/rooms` and `/api/v1/sensors`.
 
 **Why hypermedia / HATEOAS matters:** Instead of hard-coding URLs in every client, the API tells you where the main collections live. If paths change later, clients that start from the discovery document and follow links are less likely to break than clients that only read a static PDF. It’s not full hypermedia everywhere, but the root still works as a sensible **entry point** for the API.
-
 
 ### Part 2.1 - Room CRUD, `201 Created`, `Location`, list payload shape
 
@@ -208,13 +228,11 @@ I implemented `GET` and `POST` on `/rooms`, plus `GET /rooms/{roomId}` for a sin
 
 **IDs only vs full objects for `GET /rooms`:** Returning **only ids** keeps the response small on the wire (good if you had loads of rooms or huge metadata). Returning **full objects** (what I did) means more bytes per response, but the client can show names and capacity **without** doing N extra `GET /rooms/{id}` calls. For this scale I preferred full objects for simplicity.
 
-
 ### Part 2.2 - DELETE integrity and idempotency
 
 **Integrity:** You cannot delete a room if its `sensorIds` list is not empty - that would orphan sensors from the room’s point of view. In that case I throw `RoomNotEmptyException`, mapped to **409 Conflict** with a JSON message.
 
 **Idempotency:** The first successful delete on an empty room returns **204** and removes it. If you send the **same DELETE again**, the room is already gone so you get **404**. The **server state** (room absent) is the same after both calls, so I argue the operation is still **idempotent in terms of state**, even though the status code differs. Repeating DELETE does not bring the room back or keep flipping state.
-
 
 ### Part 3.1 - Sensor validation and `415` on wrong media type
 
@@ -222,13 +240,11 @@ Before saving a sensor, I look up `roomId` in `DataStore`. If it’s missing I t
 
 The resource class uses **`@Consumes(APPLICATION_JSON)`**. If the client sends e.g. **`text/plain`** or **`application/xml`**, Jersey can’t find a body reader that turns that into my `Sensor` POJO, so the request fails with **415 Unsupported Media Type** before my method runs. That’s the practical effect of `@Consumes`.
 
-
 ### Part 3.2 - `GET /sensors?type=` and query vs path
 
 Filtering uses **`@QueryParam("type")`**. An alternative would be something like `/sensors/type/CO2` with a path segment.
 
 **Why I prefer query parameters for filters:** The collection is still **`/sensors`**; the filter is an optional refinement. You can combine filters later (`?type=CO2&status=ACTIVE`) without inventing new path templates every time. It also matches how a lot of HTTP caches and tools treat “same resource, different query” for searches.
-
 
 ### Part 4.1 - Sub-resource locator pattern
 
@@ -236,26 +252,23 @@ On `SensorResource` I have a method annotated with `@Path("/{sensorId}/readings"
 
 **Why it helps in bigger APIs:** Sensor CRUD and “readings under this sensor” are different concerns. Splitting them stops one giant class from owning every nested path (`.../readings`, future `.../alerts`, etc.). It’s easier to read, test, and extend.
 
-
 ### Part 4.2 - Readings history and updating `currentValue`
 
 `GET .../readings` returns the list from `DataStore`. `POST` adds a `SensorReading` (server assigns a UUID if `id` is null). After a successful POST I set the parent **`Sensor.currentValue`** to the new reading’s **value** so the “live” field matches the latest measurement.
 
 If the sensor is in **`MAINTENANCE`**, POST throws `SensorUnavailableException` → **403** (sensor shouldn’t accept readings). Unknown sensor id returns **404**.
 
-
 ### Part 5.1 - Specific exception mappers (`409`, `422`, `403`) and JSON
 
-| Exception | HTTP | Meaning |
-|-----------|------|---------|
-| `RoomNotEmptyException` | 409 | Room still has sensors; delete blocked |
-| `LinkedResourceNotFoundException` | 422 | e.g. `roomId` in JSON doesn’t exist |
-| `SensorUnavailableException` | 403 | e.g. sensor in `MAINTENANCE` |
+| Exception                         | HTTP | Meaning                                |
+| --------------------------------- | ---- | -------------------------------------- |
+| `RoomNotEmptyException`           | 409  | Room still has sensors; delete blocked |
+| `LinkedResourceNotFoundException` | 422  | e.g. `roomId` in JSON doesn’t exist    |
+| `SensorUnavailableException`      | 403  | e.g. sensor in `MAINTENANCE`           |
 
 Each mapper returns JSON using my **`ErrorMessage`** type (`message` + `status` code), not HTML or plain text stack traces.
 
 **Why 422 instead of 404 for a bad `roomId` in the body:** The client posted to **`/sensors`**, which **exists**. The JSON is syntactically fine. The problem is **semantic**: the referenced room id is wrong. **404** usually means “this URL resource isn’t here”, which would confuse people into thinking `/sensors` was wrong. **422** signals “your entity is understood but **can’t be processed** because of invalid references / business rules”.
-
 
 ### Part 5.2 - Global `Throwable` mapper and security
 
@@ -263,13 +276,11 @@ Each mapper returns JSON using my **`ErrorMessage`** type (`message` + `status` 
 
 **Why exposing stack traces is bad:** Attackers can learn your **package names**, **frameworks**, **file paths**, and sometimes **hints about versions** or config. That makes targeted exploits and reconnaissance easier. Keeping errors generic is basic **security hygiene** for a public API.
 
-
 ### Extra (module brief) - logging filter vs logging in every method
 
 I added `ApiLoggingFilter` as both **`ContainerRequestFilter`** and **`ContainerResponseFilter`**, using `java.util.logging.Logger`. It logs **method + full URI** on the request side and the **response status** on the way out.
 
 **Why a filter:** If I scattered `LOG.info` in every resource method, changing the format or adding a correlation id would mean editing lots of files. The filter keeps logging **centralised** and consistent for all endpoints.
-
 
 ---
 
@@ -277,11 +288,10 @@ I added `ApiLoggingFilter` as both **`ContainerRequestFilter`** and **`Container
 
 I recorded a separate video walkthrough (Postman / curl) covering discovery, rooms, sensors (including **422** and **415**), readings, **403** for maintenance, **409** on delete, and the **500** safety net, and uploaded it via the **Blackboard** submission as required.
 
-
 ---
 
 ## References / notes
 
-- Course module: **5COSC022W** - University of Westminster  
-- JAX-RS implementation: **Jersey 2.x**  
+- Course module: **5COSC022W** - University of Westminster
+- JAX-RS implementation: **Jersey 2.x**
 - I did **not** use Spring Boot or any SQL database, to stay within the brief.

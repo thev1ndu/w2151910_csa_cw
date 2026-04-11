@@ -4,57 +4,79 @@ import com.smartcampus.exception.LinkedResourceNotFoundException;
 import com.smartcampus.model.Room;
 import com.smartcampus.model.Sensor;
 import com.smartcampus.store.DataStore;
-
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.logging.Logger;
+import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 @Path("/sensors")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class SensorResource {
 
     private static final Logger LOG = Logger.getLogger(SensorResource.class.getName());
 
+    private DataStore store = DataStore.getInstance();
+
+    @Context
+    private UriInfo uriInfo;
+
+    // GET all sensors, with optional type filter
     @GET
-    public List<Sensor> getAll(@QueryParam("type") String type) {
-        LOG.info("getAll sensors called, type=" + type);
-
-        List<Sensor> all = new ArrayList<>(DataStore.sensors().values());
-        if (type == null || type.isEmpty()) {
-            LOG.info("Returning " + all.size() + " sensors without filtering");
-            return all;
+    public List<Sensor> getAllSensors(@QueryParam("type") String type) {
+        LOG.info("Getting all sensors...");
+        List<Sensor> all = new ArrayList<>(store.getSensors().values());
+        if (type != null && !type.isBlank()) {
+            LOG.info("Filtering sensors by type: " + type);
+            return all.stream()
+                    .filter(s -> type.equalsIgnoreCase(s.getType()))
+                    .collect(Collectors.toList());
         }
-
-        List<Sensor> filtered = all.stream()
-                .filter(s -> type.equalsIgnoreCase(s.getType()))
-                .collect(Collectors.toList());
-        LOG.info("Returning " + filtered.size() + " sensors after filtering by type");
-        return filtered;
+        return all;
     }
 
+    // POST a new sensor (roomId must reference an existing room)
     @POST
-    public Response create(Sensor sensor) {
-        LOG.info("create sensor called for room " + sensor.getRoomId());
-
-        Room room = DataStore.rooms().get(sensor.getRoomId());
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response createSensor(Sensor sensor) {
+        LOG.info("Attempting to register new sensor: " + sensor.getId());
+        Room room = store.getRoom(sensor.getRoomId());
         if (room == null) {
-            LOG.warning("Room " + sensor.getRoomId() + " does not exist, cannot create sensor");
-            throw new LinkedResourceNotFoundException("Room " + sensor.getRoomId() + " does not exist");
+            String errorMsg = "Room '" + sensor.getRoomId() + "' does not exist. Cannot register a sensor to a non-existent room.";
+            LOG.severe(errorMsg);
+            throw new LinkedResourceNotFoundException(errorMsg);
         }
-        DataStore.sensors().put(sensor.getId(), sensor);
+        store.addSensor(sensor);
         room.getSensorIds().add(sensor.getId());
-        LOG.info("Sensor created with id " + sensor.getId());
-        return Response.status(Response.Status.CREATED).entity(sensor).build();
+        URI location = uriInfo.getAbsolutePathBuilder().path(sensor.getId()).build();
+        LOG.info("Successfully registered sensor: " + sensor.getId());
+        return Response.created(location).entity(sensor).build();
     }
 
+    // GET a single sensor by ID
+    @GET
+    @Path("/{sensorId}")
+    public Response getSensor(@PathParam("sensorId") String sensorId) {
+        LOG.info("Fetching sensor with ID: " + sensorId);
+        Sensor sensor = store.getSensor(sensorId);
+        if (sensor == null) {
+            LOG.severe("Sensor not found: " + sensorId);
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"Sensor not found: " + sensorId + "\"}")
+                    .build();
+        }
+        return Response.ok(sensor).build();
+    }
+
+    // Sub-resource locator for sensor readings
     @Path("/{sensorId}/readings")
-    public SensorReadingResource readingsSubResource(@PathParam("sensorId") String sensorId) {
-        LOG.info("Creating readings sub-resource for sensorId=" + sensorId);
+    public SensorReadingResource getReadingsSubResource(@PathParam("sensorId") String sensorId) {
         return new SensorReadingResource(sensorId);
     }
 }

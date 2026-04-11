@@ -3,65 +3,78 @@ package com.smartcampus.resource;
 import com.smartcampus.exception.RoomNotEmptyException;
 import com.smartcampus.model.Room;
 import com.smartcampus.store.DataStore;
-
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import java.net.URI;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @Path("/rooms")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class RoomResource {
 
     private static final Logger LOG = Logger.getLogger(RoomResource.class.getName());
 
+    private DataStore store = DataStore.getInstance();
+
+    @Context
+    private UriInfo uriInfo;
+
+    // GET all rooms
     @GET
-    public List<Room> getAll() {
-        LOG.info("getAll rooms called");
-        List<Room> rooms = new ArrayList<>(DataStore.rooms().values());
-        LOG.info("Returning " + rooms.size() + " rooms");
-        return rooms;
+    public Collection<Room> getAllRooms() {
+        LOG.info("Fetching all rooms.");
+        return new ArrayList<>(store.getRooms().values());
     }
 
+    // POST a new room
     @POST
-    public Response create(Room room) {
-        LOG.info("create room called with id=" + room.getId());
-        DataStore.rooms().put(room.getId(), room);
-        LOG.info("Room created with id=" + room.getId());
-        return Response.status(Response.Status.CREATED).entity(room).build();
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response createRoom(Room room) {
+        LOG.info("Attempting to create room: " + room.getId());
+        store.addRoom(room);
+        URI location = uriInfo.getAbsolutePathBuilder().path(room.getId()).build();
+        LOG.info("Successfully created room: " + room.getId());
+        return Response.created(location).entity(room).build();
     }
 
+    // GET a single room by ID
     @GET
     @Path("/{roomId}")
-    public Response get(@PathParam("roomId") String roomId) {
-        LOG.info("get room called with id=" + roomId);
-        Room room = DataStore.rooms().get(roomId);
+    public Response getRoom(@PathParam("roomId") String roomId) {
+        LOG.info("Fetching room with ID: " + roomId);
+        Room room = store.getRoom(roomId);
         if (room == null) {
-            LOG.warning("Room " + roomId + " not found");
-            return Response.status(Response.Status.NOT_FOUND).build();
+            LOG.severe("Room not found: " + roomId);
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"Room not found: " + roomId + "\"}")
+                    .build();
         }
-        LOG.info("Room " + roomId + " found, returning details");
         return Response.ok(room).build();
     }
 
+    // DELETE a room (cannot delete if sensors are still assigned)
     @DELETE
     @Path("/{roomId}")
-    public Response delete(@PathParam("roomId") String roomId) {
-        LOG.info("delete room called with id=" + roomId);
-        Room room = DataStore.rooms().get(roomId);
+    public Response deleteRoom(@PathParam("roomId") String roomId) {
+        LOG.info("Attempting to delete room with ID: " + roomId);
+        Room room = store.getRoom(roomId);
         if (room == null) {
-            LOG.warning("Room " + roomId + " not found, cannot delete");
-            return Response.status(Response.Status.NOT_FOUND).build();
+            LOG.info("Room not found for deletion, returning no content: " + roomId);
+            return Response.noContent().build();
         }
         if (!room.getSensorIds().isEmpty()) {
-            LOG.warning("Room " + roomId + " still has sensors, cannot delete");
-            throw new RoomNotEmptyException("Room " + roomId + " still has active sensors");
+            String errorMsg = "Room " + roomId + " still has " + room.getSensorIds().size() + " sensor(s) assigned. Remove all sensors before deleting the room.";
+            LOG.severe(errorMsg);
+            throw new RoomNotEmptyException(errorMsg);
         }
-        DataStore.rooms().remove(roomId);
-        LOG.info("Room " + roomId + " deleted successfully");
+        store.removeRoom(roomId);
+        LOG.info("Successfully deleted room: " + roomId);
         return Response.noContent().build();
     }
 }

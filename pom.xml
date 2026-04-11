@@ -12,28 +12,28 @@
         <dependency>
             <groupId>org.glassfish.jersey.inject</groupId>
             <artifactId>jersey-hk2</artifactId>
-            <version>2.32</version>
+            <version>3.1.5</version>
         </dependency>
 
         <!-- JAX-RS implementation (Jersey, servlet container integration) -->
         <dependency>
             <groupId>org.glassfish.jersey.containers</groupId>
             <artifactId>jersey-container-servlet</artifactId>
-            <version>2.32</version>
+            <version>3.1.5</version>
         </dependency>
         
         <!-- JSON support (Jackson) -->
         <dependency>
             <groupId>org.glassfish.jersey.media</groupId>
             <artifactId>jersey-media-json-jackson</artifactId>
-            <version>2.32</version> <!-- Adjust version as needed -->
+            <version>3.1.5</version>
         </dependency>
 
         <!-- Grizzly HTTP server integration for standalone boot via Solv -->
         <dependency>
             <groupId>org.glassfish.jersey.containers</groupId>
             <artifactId>jersey-container-grizzly2-http</artifactId>
-            <version>2.32</version>
+            <version>3.1.5</version>
         </dependency>
 
       
@@ -46,8 +46,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>11</source>
+                    <target>11</target>
                 </configuration>
             </plugin>
             <plugin>

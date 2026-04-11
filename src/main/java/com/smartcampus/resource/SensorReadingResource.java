@@ -4,57 +4,76 @@ import com.smartcampus.exception.SensorUnavailableException;
 import com.smartcampus.model.Sensor;
 import com.smartcampus.model.SensorReading;
 import com.smartcampus.store.DataStore;
-
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class SensorReadingResource {
 
-    private final String sensorId;
-
     private static final Logger LOG = Logger.getLogger(SensorReadingResource.class.getName());
+
+    private String sensorId;
+    private DataStore store = DataStore.getInstance();
 
     public SensorReadingResource(String sensorId) {
         this.sensorId = sensorId;
     }
 
+    // GET all readings for this sensor
     @GET
-    public List<SensorReading> getHistory() {
-        LOG.info("getHistory called for sensorId=" + sensorId);
-        List<SensorReading> history = DataStore.readingsFor(sensorId);
-        LOG.info("Returning " + history.size() + " readings for sensorId=" + sensorId);
-        return history;
+    public Response getReadings() {
+        LOG.info("Fetching readings for sensor ID: " + sensorId);
+        Sensor sensor = store.getSensor(sensorId);
+        if (sensor == null) {
+            LOG.severe("Sensor not found when fetching readings: " + sensorId);
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"Sensor not found: " + sensorId + "\"}")
+                    .build();
+        }
+        List<SensorReading> readings = store.getReadings(sensorId);
+        LOG.info("Successfully fetched " + readings.size() + " readings for sensor: " + sensorId);
+        return Response.ok(readings).build();
     }
 
+    // POST a new reading for this sensor
     @POST
+    @Consumes(MediaType.APPLICATION_JSON)
     public Response addReading(SensorReading reading) {
-        LOG.info("addReading called for sensorId=" + sensorId);
-        Sensor sensor = DataStore.sensors().get(sensorId);
+        LOG.info("Attempting to add reading for sensor ID: " + sensorId);
+        Sensor sensor = store.getSensor(sensorId);
         if (sensor == null) {
-            LOG.warning("Sensor " + sensorId + " not found when trying to add reading");
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
-        if ("MAINTENANCE".equalsIgnoreCase(sensor.getStatus())) {
-            LOG.warning("Sensor " + sensorId + " is under maintenance, cannot add reading");
-            throw new SensorUnavailableException("Sensor " + sensorId + " is under maintenance");
+            LOG.severe("Sensor not found when adding reading: " + sensorId);
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"Sensor not found: " + sensorId + "\"}")
+                    .build();
         }
 
-        if (reading.getId() == null) {
+        // Cannot post readings to a sensor in MAINTENANCE mode
+        if ("MAINTENANCE".equalsIgnoreCase(sensor.getStatus())) {
+            String errorMsg = "Sensor '" + sensorId + "' is in MAINTENANCE mode and cannot accept readings.";
+            LOG.severe(errorMsg);
+            throw new SensorUnavailableException(errorMsg);
+        }
+
+        // Auto-generate ID and timestamp if missing
+        if (reading.getId() == null || reading.getId().isBlank()) {
             reading.setId(UUID.randomUUID().toString());
         }
-        DataStore.readingsFor(sensorId).add(reading);
+        if (reading.getTimestamp() == 0) {
+            reading.setTimestamp(System.currentTimeMillis());
+        }
 
-        // side effect: update current value on parent sensor
+        store.addReading(sensorId, reading);
+
+        // Update the sensor's currentValue
         sensor.setCurrentValue(reading.getValue());
 
-        LOG.info("Reading created with id " + reading.getId() + " for sensorId=" + sensorId);
-
+        LOG.info("Successfully added reading (value: " + reading.getValue() + ") to sensor: " + sensorId);
         return Response.status(Response.Status.CREATED).entity(reading).build();
     }
 }

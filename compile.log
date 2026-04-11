@@ -1,0 +1,24 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.smartcampus:smart-campus-api >------------------
+[INFO] Building smartcampus 1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ war ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ smart-campus-api ---
+[INFO] Deleting /Users/thevinduw/Desktop/w2151910_csa_cw/target
+[INFO] 
+[INFO] --- resources:3.4.0:resources (default-resources) @ smart-campus-api ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.8.1:compile (default-compile) @ smart-campus-api ---
+[INFO] Changes detected - recompiling the module!
+[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. build is platform dependent!
+[INFO] Compiling 18 source files to /Users/thevinduw/Desktop/w2151910_csa_cw/target/classes
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.632 s
+[INFO] Finished at: 2026-04-11T12:41:15+05:30
+[INFO] ------------------------------------------------------------------------
