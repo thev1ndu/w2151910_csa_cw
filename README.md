@@ -4,7 +4,7 @@
 **Student:** Thevindu Wickramaarachchi — w2151910  
 **GitHub:** [Repository Link](https://github.com/thev1ndu/w2151910_csa_cw)
 
-A RESTful API for the university "Smart Campus" initiative, built with **JAX-RS (Jersey)** and deployed as a **WAR** on Apache Tomcat. The service manages **rooms**, **sensors** deployed within them, and a **historical log of sensor readings**. All data is stored **in memory** using `ConcurrentHashMap` and `CopyOnWriteArrayList` — no database technology is used.
+A RESTful API for the university "Smart Campus" initiative, built with **JAX-RS (Jersey)** and deployed as a **WAR** on Apache Tomcat. The service manages **rooms**, **sensors** deployed within them, and a **historical log of sensor readings**. All data is stored **in memory** no database technology is used.
 
 ---
 
