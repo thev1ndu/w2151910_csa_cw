@@ -166,7 +166,22 @@ curl -i -X POST \
 
 ---
 
-### Step 13: Delete the Sensor
+### Step 13: Error — Internal Server Error with No Stack Trace (500)
+
+Send syntactically invalid JSON. The malformed body causes a parsing exception that is **not** caught by any specific `ExceptionMapper`, so the `GenericExceptionMapper` handles it. It returns a clean `ErrorMessage` with a generic description — **no stack trace or internal details are leaked** to the client. The full stack trace is only logged server-side.
+
+**Expected:** `500 Internal Server Error` with a clean JSON body: `{"error":"Internal Server Error","code":500,"message":"An unexpected error occurred."}` — no Java class names or stack frames visible.
+
+```bash
+curl -i -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"id": INVALID_JSON!!}' \
+  "http://localhost:8080/api/v1/rooms"
+```
+
+---
+
+### Step 14: Delete the Sensor
 
 Delete sensor `TEMP-001`. The `DELETE` endpoint unlinks the sensor from room `LIB-301` (removes from `sensorIds`) and removes it from the `DataStore`. The room's `sensorIds` list is now empty, which is required before the room can be deleted.
 
@@ -178,7 +193,7 @@ curl -i -X DELETE "http://localhost:8080/api/v1/sensors/TEMP-001"
 
 ---
 
-### Step 14: Delete the Room (Success)
+### Step 15: Delete the Room (Success)
 
 Now that `LIB-301` has no sensors assigned, the DELETE succeeds. The room is removed from the `DataStore`.
 
@@ -190,11 +205,11 @@ curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
 
 ---
 
-### Step 15: DELETE Idempotency Demo
+### Step 16: DELETE Idempotency Demo
 
 Delete `LIB-301` again. The room no longer exists, so the server returns `404 Not Found`. The server state (room absent) is identical after both calls, proving the operation is **idempotent in terms of state**.
 
-**Expected:** `404 Not Found` with `ErrorMessage` JSON. Server state is the same as after Step 14.
+**Expected:** `404 Not Found` with `ErrorMessage` JSON. Server state is the same as after Step 15.
 
 ```bash
 curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"

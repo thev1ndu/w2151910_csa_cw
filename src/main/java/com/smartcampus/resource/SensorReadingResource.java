@@ -9,7 +9,6 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.List;
-import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -21,6 +20,7 @@ import java.util.logging.Level;
 public class SensorReadingResource {
 
     private static final Logger LOG = Logger.getLogger(SensorReadingResource.class.getName());
+    private static int idCounter = 0;
 
     private String sensorId;
     private DataStore store = DataStore.getInstance();
@@ -67,7 +67,7 @@ public class SensorReadingResource {
 
         // Auto-generate ID and timestamp if missing
         if (reading.getId() == null || reading.getId().isBlank()) {
-            reading.setId(UUID.randomUUID().toString());
+            reading.setId("R-" + (++idCounter));
         }
         if (reading.getTimestamp() == 0) {
             reading.setTimestamp(System.currentTimeMillis());
