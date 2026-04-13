@@ -1,6 +1,6 @@
 ## Demo
 
-This section is the script for the video demonstration. Follow each step in order — run the `curl` command and verify the expected result.
+This is a RESTful Smart Campus API built using JAX-RS and deployed on Tomcat, designed to manage rooms, sensors, and their real-time and historical data entirely in memory.
 
 ---
 
