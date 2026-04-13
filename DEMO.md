@@ -127,20 +127,35 @@ curl -i -X POST \
   "http://localhost:8080/api/v1/sensors"
 ```
 
-### Step 12: DELETE Idempotency Demo
+### Step 12: Delete the Sensor
 
-First, remove the sensor so `LIB-301` is empty, then delete the room twice. First DELETE returns `204 No Content`. Second DELETE returns `404 Not Found` — the server state (room absent) is identical after both calls, proving the operation is **idempotent in terms of state**.
+Delete sensor `TEMP-001`. This unlinks the sensor from room `LIB-301` and removes it from the data store. The room's `sensorIds` list is now empty, which is required before the room can be deleted.
+
+**Expected:** `204 No Content`.
 
 ```bash
-# Remove the sensor from the room first (or use a room with no sensors)
-# First delete — room exists and is empty
-curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
+curl -i -X DELETE "http://localhost:8080/api/v1/sensors/TEMP-001"
+```
 
-# Second delete — room already gone, same server state
+### Step 13: Delete the Room (Success)
+
+Now that `LIB-301` has no sensors assigned, the DELETE succeeds. The room is removed from the `DataStore`.
+
+**Expected:** `204 No Content`.
+
+```bash
 curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
 ```
 
-**Expected:** First call → `204`, second call → `404` with `ErrorMessage` JSON. Server state is the same after both.
+### Step 14: DELETE Idempotency Demo
+
+Delete `LIB-301` again. The room no longer exists, so the server returns `404 Not Found`. The server state (room absent) is identical after both calls, proving the operation is **idempotent in terms of state**.
+
+**Expected:** `404 Not Found` with `ErrorMessage` JSON. Server state is the same as after Step 13.
+
+```bash
+curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
+```
 
 ---
 

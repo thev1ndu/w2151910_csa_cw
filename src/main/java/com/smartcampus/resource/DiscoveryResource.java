@@ -28,8 +28,8 @@ public class DiscoveryResource {
         info.put("description", "Sensor and Room Management API for the university Smart Campus project");
 
         Map<String, String> contact = new LinkedHashMap<>();
-        contact.put("name", "Campus Admin");
-        contact.put("email", "admin@smartcampus.ac.uk");
+        contact.put("name", "admin");
+        contact.put("email", "admin@smartcampus.ac.lk");
         info.put("contact", contact);
 
         String baseUri = uriInfo.getBaseUri().toString();

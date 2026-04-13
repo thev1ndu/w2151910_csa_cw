@@ -80,6 +80,29 @@ public class SensorResource {
         return Response.ok(sensor).build();
     }
 
+    // DELETE a sensor by ID (also unlinks from its parent room)
+    @DELETE
+    @Path("/{sensorId}")
+    public Response deleteSensor(@PathParam("sensorId") String sensorId) {
+        LOG.info("Attempting to delete sensor with ID: " + sensorId);
+        Sensor sensor = store.getSensor(sensorId);
+        if (sensor == null) {
+            LOG.info("Sensor not found for deletion: " + sensorId);
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorMessage("Not Found", 404, "Sensor not found: " + sensorId))
+                    .build();
+        }
+        // Unlink sensor from its parent room
+        Room room = store.getRoom(sensor.getRoomId());
+        if (room != null) {
+            room.getSensorIds().remove(sensorId);
+            LOG.info("Unlinked sensor " + sensorId + " from room " + sensor.getRoomId());
+        }
+        store.removeSensor(sensorId);
+        LOG.info("Successfully deleted sensor: " + sensorId);
+        return Response.noContent().build();
+    }
+
     // Sub-resource locator for sensor readings
     @Path("/{sensorId}/readings")
     public SensorReadingResource getReadingsSubResource(@PathParam("sensorId") String sensorId) {
