@@ -125,13 +125,14 @@ curl -i "http://localhost:8080/api/v1/sensors/TEMP-001/readings"
 
 ### Part 1: Service Architecture & Setup
 
-**Q: Explain the default lifecycle of a JAX-RS Resource class. Is a new instance instantiated for every incoming request, or does the runtime treat it as a singleton? How does this impact data management and synchronisation?**
+**Q 1.1: Explain the default lifecycle of a JAX-RS Resource class. Is a new instance instantiated for every incoming request, or does the runtime treat it as a
+singleton? Elaborate on how this architectural decision impacts the way you manage and synchronize your in-memory data structures (maps/lists) to prevent data loss or race conditions.**
 
 By default, JAX-RS follows a per-request lifecycle, meaning the runtime creates a fresh instance of each resource class (such as `RoomResource` or `SensorResource`) for every incoming HTTP request, and discards it once the response is sent. This design prevents one request from accidentally corrupting state for another, but it also means that any data stored in instance fields is lost between requests.
 
 To persist data across requests, the application uses a singleton `DataStore` class with a private constructor and a static `getInstance()` method, ensuring that only one shared instance exists. All resource classes obtain a reference to this same object. Because Apache Tomcat serves requests concurrently across multiple threads, the `DataStore` must be thread-safe. It achieves this by using `ConcurrentHashMap` for rooms, sensors, and reading collections, which permits concurrent reads without locking and uses fine-grained segment-level locks for writes. Sensor reading lists use `CopyOnWriteArrayList`, which is well suited for read-heavy, write-light workloads. The `computeIfAbsent` method is used when creating new reading lists to avoid race conditions where two threads might simultaneously attempt to initialise the same entry. These `java.util.concurrent` structures eliminate the need for `synchronized` blocks entirely, resulting in better throughput under load.
 
-**Q: Why is HATEOAS considered a hallmark of advanced RESTful design? How does it benefit client developers?**
+**Q 1.2: Why is the provision of ”Hypermedia” (links and navigation within responses) considered a hallmark of advanced RESTful design (HATEOAS)? How does this approach benefit client developers compared to static documentation?**
 
 HATEOAS (Hypermedia as the Engine of Application State) is the principle that API responses should include navigational links so that clients can discover available actions at runtime rather than relying on hardcoded URLs. The `DiscoveryResource` at `GET /api/v1` demonstrates this by building links to `/rooms` and `/sensors` dynamically using `@Context UriInfo`, which means the URLs automatically adapt to whatever host and port the server is deployed on.
 
@@ -141,11 +142,11 @@ This approach benefits client developers in two key ways. First, it decouples th
 
 ### Part 2: Room Management
 
-**Q: When returning a list of rooms, what are the implications of returning only IDs versus full objects?**
+**Q 2.1: When returning a list of rooms, what are the implications of returning only IDs versus returning the full room objects? Consider network bandwidth and client side processing.**
 
 The `GET /rooms` endpoint returns complete `Room` objects (including `id`, `name`, `capacity`, and `sensorIds`) rather than just a list of identifiers. If only IDs were returned, the client would need to issue a separate `GET /rooms/{roomId}` request for each room to obtain its details. This is known as the N+1 problem, and for a campus with potentially hundreds of rooms it would result in excessive network round-trips and increased server load. Returning full objects allows the client to obtain all necessary information in a single request, which is significantly more efficient. The trade-off is a slightly larger response payload, but for structured data of this scale the bandwidth overhead is negligible compared to the latency savings.
 
-**Q: Is the DELETE operation idempotent in your implementation? Justify your answer.**
+**Q 2.2: Is the DELETE operation idempotent in your implementation? Provide a detailed justification by describing what happens if a client mistakenly sends the exact same DELETE request for a room multiple times.**
 
 Yes, the `DELETE /rooms/{roomId}` operation is idempotent. The first successful call removes the room from the `DataStore` and returns `204 No Content`. If the same request is repeated, the room no longer exists, so the method returns `404 Not Found`. Although the response status code differs between the two calls, the server-side state is identical after both — the room is absent. According to RFC 7231, idempotency requires that "the side-effects of N > 0 identical requests is the same as for a single request," which is exactly what this implementation guarantees. Additionally, if the room still has sensors assigned, the `RoomNotEmptyException` is thrown, returning `409 Conflict` and preventing data orphans.
 
