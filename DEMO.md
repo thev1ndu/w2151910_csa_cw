@@ -1,6 +1,8 @@
 ## Demo
 
-This section is the script for the video demonstration. Follow each step in order — read the description, run the `curl` command, and verify the expected result.
+This section is the script for the video demonstration. Follow each step in order — run the `curl` command and verify the expected result.
+
+---
 
 ### Step 1: API Discovery
 
@@ -12,6 +14,8 @@ Check the API is running. The discovery endpoint returns metadata (name, version
 curl -i "http://localhost:8080/api/v1"
 ```
 
+---
+
 ### Step 2: List Existing Rooms
 
 Fetch all rooms. The API comes pre-loaded with seed data (`R101`, `R102`).
@@ -21,6 +25,8 @@ Fetch all rooms. The API comes pre-loaded with seed data (`R101`, `R102`).
 ```bash
 curl -i "http://localhost:8080/api/v1/rooms"
 ```
+
+---
 
 ### Step 3: Create a New Room
 
@@ -35,6 +41,8 @@ curl -i -X POST \
   "http://localhost:8080/api/v1/rooms"
 ```
 
+---
+
 ### Step 4: Verify the New Room
 
 Fetch `LIB-301` by ID to confirm it was persisted in the in-memory `DataStore`.
@@ -44,6 +52,8 @@ Fetch `LIB-301` by ID to confirm it was persisted in the in-memory `DataStore`.
 ```bash
 curl -i "http://localhost:8080/api/v1/rooms/LIB-301"
 ```
+
+---
 
 ### Step 5: Error — Sensor in a Non-Existent Room (422)
 
@@ -58,6 +68,8 @@ curl -i -X POST \
   "http://localhost:8080/api/v1/sensors"
 ```
 
+---
+
 ### Step 6: Register a Sensor Successfully
 
 Register temperature sensor `TEMP-001` into `LIB-301`. The room must exist or a 422 is returned (as shown above).
@@ -71,21 +83,25 @@ curl -i -X POST \
   "http://localhost:8080/api/v1/sensors"
 ```
 
+---
+
 ### Step 7: Filter Sensors by Type
 
 Use `@QueryParam("type")` to filter. Only sensors with type `Temperature` are returned.
 
-**Expected:** `200 OK` with a filtered JSON array.
+**Expected:** `200 OK` with a filtered JSON array (includes seed sensor `S001` and newly created `TEMP-001`).
 
 ```bash
 curl -i "http://localhost:8080/api/v1/sensors?type=Temperature"
 ```
 
+---
+
 ### Step 8: Add a Sensor Reading
 
 POST a reading to the sub-resource `/sensors/TEMP-001/readings`. The server auto-generates `id` if missing and updates `Sensor.currentValue` to `22.3`. This uses the **sub-resource locator** pattern — `SensorResource` delegates to `SensorReadingResource`.
 
-**Expected:** `201 Created` with reading JSON.
+**Expected:** `201 Created` with reading JSON (auto-generated `id`).
 
 ```bash
 curl -i -X POST \
@@ -93,6 +109,8 @@ curl -i -X POST \
   -d '{"timestamp":1713868800000,"value":22.3}' \
   "http://localhost:8080/api/v1/sensors/TEMP-001/readings"
 ```
+
+---
 
 ### Step 9: Get Sensor Readings History
 
@@ -104,7 +122,24 @@ Retrieve all readings for `TEMP-001`. This returns the full history list.
 curl -i "http://localhost:8080/api/v1/sensors/TEMP-001/readings"
 ```
 
-### Step 10: Error — Deleting a Room in Use (409)
+---
+
+### Step 10: Error — Reading on a MAINTENANCE Sensor (403)
+
+Try to add a reading to seed sensor `S003` which is in `MAINTENANCE` mode. This triggers `SensorUnavailableException` → mapped to **403 Forbidden** via `SensorUnavailableExceptionMapper`.
+
+**Expected:** `403 Forbidden` with `ErrorMessage` JSON.
+
+```bash
+curl -i -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"timestamp":1713868800000,"value":19.0}' \
+  "http://localhost:8080/api/v1/sensors/S003/readings"
+```
+
+---
+
+### Step 11: Error — Deleting a Room in Use (409)
 
 Try to delete `LIB-301` while `TEMP-001` is still assigned. This triggers `RoomNotEmptyException` → mapped to **409 Conflict** via `RoomNotEmptyExceptionMapper`. Data integrity is enforced.
 
@@ -114,7 +149,9 @@ Try to delete `LIB-301` while `TEMP-001` is still assigned. This triggers `RoomN
 curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
 ```
 
-### Step 11: Error — Unsupported Media Type (415)
+---
+
+### Step 12: Error — Unsupported Media Type (415)
 
 Send `Content-Type: text/plain` instead of `application/json`. Jersey's `@Consumes(APPLICATION_JSON)` rejects the request before the method body runs.
 
@@ -127,9 +164,11 @@ curl -i -X POST \
   "http://localhost:8080/api/v1/sensors"
 ```
 
-### Step 12: Delete the Sensor
+---
 
-Delete sensor `TEMP-001`. This unlinks the sensor from room `LIB-301` and removes it from the data store. The room's `sensorIds` list is now empty, which is required before the room can be deleted.
+### Step 13: Delete the Sensor
+
+Delete sensor `TEMP-001`. The `DELETE` endpoint unlinks the sensor from room `LIB-301` (removes from `sensorIds`) and removes it from the `DataStore`. The room's `sensorIds` list is now empty, which is required before the room can be deleted.
 
 **Expected:** `204 No Content`.
 
@@ -137,7 +176,9 @@ Delete sensor `TEMP-001`. This unlinks the sensor from room `LIB-301` and remove
 curl -i -X DELETE "http://localhost:8080/api/v1/sensors/TEMP-001"
 ```
 
-### Step 13: Delete the Room (Success)
+---
+
+### Step 14: Delete the Room (Success)
 
 Now that `LIB-301` has no sensors assigned, the DELETE succeeds. The room is removed from the `DataStore`.
 
@@ -147,11 +188,13 @@ Now that `LIB-301` has no sensors assigned, the DELETE succeeds. The room is rem
 curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
 ```
 
-### Step 14: DELETE Idempotency Demo
+---
+
+### Step 15: DELETE Idempotency Demo
 
 Delete `LIB-301` again. The room no longer exists, so the server returns `404 Not Found`. The server state (room absent) is identical after both calls, proving the operation is **idempotent in terms of state**.
 
-**Expected:** `404 Not Found` with `ErrorMessage` JSON. Server state is the same as after Step 13.
+**Expected:** `404 Not Found` with `ErrorMessage` JSON. Server state is the same as after Step 14.
 
 ```bash
 curl -i -X DELETE "http://localhost:8080/api/v1/rooms/LIB-301"
