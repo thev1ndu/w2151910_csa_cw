@@ -3,25 +3,31 @@ package com.smartcampus.store;
 import com.smartcampus.model.Room;
 import com.smartcampus.model.Sensor;
 import com.smartcampus.model.SensorReading;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DataStore {
 
     private static DataStore instance = new DataStore();
 
-    private Map<String, Room> rooms = new ConcurrentHashMap<>();
-    private Map<String, Sensor> sensors = new ConcurrentHashMap<>();
-    private Map<String, List<SensorReading>> readings = new ConcurrentHashMap<>();
+    private Map<String, Room> rooms = new HashMap<>();
+    private Map<String, Sensor> sensors = new HashMap<>();
+    private Map<String, List<SensorReading>> readings = new HashMap<>();
 
     private DataStore() {
         seedData();
     }
 
-    private void seedData() {
-        // Add Seed Data
+    public static DataStore getInstance() {
+        return instance;
+    }
+
+    // SEED DATA
+    private synchronized void seedData() {
+
         Room r1 = new Room("R101", "Lecture Hall A", 100);
         rooms.put(r1.getId(), r1);
 
@@ -45,54 +51,73 @@ public class DataStore {
 
         SensorReading sr1 = new SensorReading("R-001", System.currentTimeMillis() - 3600000, 22.0);
         addReading(s1.getId(), sr1);
+
         SensorReading sr2 = new SensorReading("R-002", System.currentTimeMillis(), 22.5);
         addReading(s1.getId(), sr2);
     }
 
-    public static DataStore getInstance() {
-        return instance;
+    // ROOM METHODS
+    public synchronized Map<String, Room> getRooms() {
+        return new HashMap<>(rooms); // defensive copy
     }
 
-    // Room methods
-    public Map<String, Room> getRooms() {
-        return rooms;
-    }
-
-    public Room getRoom(String id) {
+    public synchronized Room getRoom(String id) {
         return rooms.get(id);
     }
 
-    public void addRoom(Room room) {
+    public synchronized void addRoom(Room room) {
         rooms.put(room.getId(), room);
     }
 
-    public Room removeRoom(String id) {
+    public synchronized Room removeRoom(String id) {
         return rooms.remove(id);
     }
 
-    // Sensor methods
-    public Map<String, Sensor> getSensors() {
-        return sensors;
+    // SENSOR METHODS
+    public synchronized Map<String, Sensor> getSensors() {
+        return new HashMap<>(sensors);
     }
 
-    public Sensor getSensor(String id) {
+    public synchronized Sensor getSensor(String id) {
         return sensors.get(id);
     }
 
-    public void addSensor(Sensor sensor) {
+    // IMPORTANT: atomic operation across structures
+    public synchronized void addSensor(Sensor sensor) {
         sensors.put(sensor.getId(), sensor);
+
+        Room room = rooms.get(sensor.getRoomId());
+        if (room != null) {
+            room.getSensorIds().add(sensor.getId());
+        }
     }
 
-    public Sensor removeSensor(String id) {
-        return sensors.remove(id);
+    public synchronized Sensor removeSensor(String id) {
+        Sensor removed = sensors.remove(id);
+
+        if (removed != null) {
+            Room room = rooms.get(removed.getRoomId());
+            if (room != null) {
+                room.getSensorIds().remove(id);
+            }
+        }
+
+        return removed;
     }
 
-    // Reading methods
-    public List<SensorReading> getReadings(String sensorId) {
-        return readings.getOrDefault(sensorId, new CopyOnWriteArrayList<>());
+    // READING METHODS
+    public synchronized List<SensorReading> getReadings(String sensorId) {
+        return readings.getOrDefault(sensorId, new ArrayList<>());
     }
 
-    public void addReading(String sensorId, SensorReading reading) {
-        readings.computeIfAbsent(sensorId, k -> new CopyOnWriteArrayList<>()).add(reading);
+    public synchronized void addReading(String sensorId, SensorReading reading) {
+        List<SensorReading> list = readings.get(sensorId);
+
+        if (list == null) {
+            list = new ArrayList<>();
+            readings.put(sensorId, list);
+        }
+
+        list.add(reading);
     }
 }
