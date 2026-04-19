@@ -166,7 +166,7 @@ Finally, this approach simplifies client usage and follows widely adopted indust
 
 In SensorResource, the method annotated with @Path("/{sensorId}/readings") acts as a sub-resource locator because it does not define an HTTP method. Instead, it returns a SensorReadingResource instance with the sensorId as context. The JAX-RS runtime then resolves the incoming request and dispatches the actual HTTP method (such as GET or POST) to the appropriate method within the returned sub-resource class.
 
-This pattern improves architectural design by enforcing clear separation of concerns. Core sensor operations and reading management are handled in different classes, preventing a single controller from becoming large and difficult to maintain. It also enhances extensibility, as new nested resources such as /sensors/{id}/alerts can be introduced as independent classes without modifying existing logic, reducing the risk of regression.
+This pattern improves architectural design by enforcing clear separation of concerns. Core sensor operations and reading management are handled in different classes, preventing a single controller from becoming large and difficult to maintain. It also enhances extensibility, as new nested resources such as /sensors/{id}/readings can be introduced as independent classes without modifying existing logic, reducing the risk of regression.
 
 Additionally, delegating logic to sub-resources improves testability and maintainability. Each sub-resource can be tested in isolation by providing the required context, without involving the parent resource. Compared to a single large controller handling deeply nested paths, this modular approach reduces complexity, keeps classes focused, and scales more effectively as the API grows.
 
