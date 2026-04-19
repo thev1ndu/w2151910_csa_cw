@@ -59,7 +59,6 @@ public class SensorResource {
             throw new LinkedResourceNotFoundException(errorMsg);
         }
         store.addSensor(sensor);
-        room.getSensorIds().add(sensor.getId());
         URI location = uriInfo.getAbsolutePathBuilder().path(sensor.getId()).build();
         LOG.info("Successfully registered sensor: " + sensor.getId());
         return Response.created(location).entity(sensor).build();
