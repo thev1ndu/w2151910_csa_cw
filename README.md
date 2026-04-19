@@ -7,6 +7,43 @@
 A RESTful API for the university "Smart Campus" initiative, built with **JAX-RS (Jersey)** and deployed as a **WAR** on Apache Tomcat. The service manages **rooms**, **sensors** deployed within them, and a **historical log of sensor readings**. All data is stored **in memory** no database technology is used.
 
 ---
+ 
+## Setup & Run Guide
+ 
+### 1. Requirements
+ 
+- Java JDK 8 or higher
+- Apache Tomcat 9 (e.g., 9.0.100)
+- NetBeans IDE
+### 2. Download Project
+ 
+```bash
+git clone https://github.com/thev1ndu/w2151910_csa_cw.git
+```
+ 
+### 3. Configure Tomcat in NetBeans
+ 
+1. Open NetBeans
+2. Go to **Services → Servers**
+3. Right-click → **Add Server**
+4. Select **Apache Tomcat**
+5. Choose your Tomcat installation folder
+### 4. Open Project
+ 
+- Go to **File → Open Project**
+- Select the project folder
+### 5. Run the Project
+ 
+- Right-click the project → **Run**
+### 6. Access API
+ 
+Open in browser or Postman:
+ 
+```
+http://localhost:8080/api/v1
+```
+
+---
 
 ## API design overview
 
